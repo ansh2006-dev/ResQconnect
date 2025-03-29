@@ -18,8 +18,8 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
   // API configuration
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   
-  // DEMO MODE - For demonstration purposes when API key is not available
-  const DEMO_MODE = true; // Set to false to use actual DeepSeek API
+  // Set to false to use actual DeepSeek API
+  const DEMO_MODE = false; 
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -133,21 +133,38 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
         };
       } else {
         // Use actual DeepSeek API via backend
+        console.log('Sending request to DeepSeek API via backend');
         const conversationHistory = messages.map(msg => ({
           text: msg.text,
           sender: msg.sender
         }));
         
-        const response = await axios.post(`${API_URL}/chatbot/message`, {
-          message: input,
-          conversationHistory: conversationHistory
-        });
-        
-        botResponse = { 
-          id: messages.length + 2, 
-          text: response.data.response, 
-          sender: 'bot' 
-        };
+        try {
+          const response = await axios.post(`${API_URL}/chatbot/message`, {
+            message: input,
+            conversationHistory: conversationHistory
+          });
+          
+          console.log('DeepSeek API response:', response.data);
+          
+          if (response.data && response.data.success && response.data.response) {
+            botResponse = { 
+              id: messages.length + 2, 
+              text: response.data.response, 
+              sender: 'bot' 
+            };
+          } else {
+            throw new Error('Invalid API response format');
+          }
+        } catch (apiError) {
+          console.error('DeepSeek API request failed:', apiError);
+          // Fallback to local response if API call fails
+          botResponse = { 
+            id: messages.length + 2, 
+            text: getLocalResponse(input),
+            sender: 'bot' 
+          };
+        }
       }
       
       setMessages(prev => [...prev, botResponse]);
