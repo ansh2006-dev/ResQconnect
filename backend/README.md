@@ -13,12 +13,20 @@ This is the backend for the ResQConnect disaster management application, built w
 
 ## Setup
 
-1. Install dependencies:
+1. Clone the repository and navigate to the backend directory:
+   ```
+   git clone https://github.com/ansh2006-dev/ResQconnect.git
+   cd ResQconnect
+   git checkout backend
+   cd backend
+   ```
+
+2. Install dependencies:
    ```
    npm install
    ```
 
-2. Create a `.env` file with your configuration:
+3. Create a `.env` file with your API keys:
    ```
    MONGO_URI=your_mongodb_connection_string
    PORT=5000
@@ -29,9 +37,13 @@ This is the backend for the ResQConnect disaster management application, built w
    OPENWEATHER_API_KEY=your_openweather_api_key
    ```
 
-3. Add your Firebase Admin SDK JSON file as `firebase-adminsdk.json` in the root directory.
+4. Set up Firebase Admin SDK:
+   - Go to Firebase Console > Project Settings > Service accounts
+   - Generate a new private key
+   - Save the JSON file as `firebase-adminsdk.json` in the backend directory
+   - Make sure this file is listed in your .gitignore
 
-4. Run the server:
+5. Run the server:
    ```
    npm start
    ```
@@ -43,6 +55,27 @@ This is the backend for the ResQConnect disaster management application, built w
 
 ## API Endpoints
 
+### Disaster Management
 - `GET /api/disasters` - Get disaster reports with pagination
+  - Query params: `limit` (default: 5), `after` (cursor for pagination)
+  - Returns: `{ data: [...disasters], nextCursor: string }`
+
+- `POST /api/disasters` - Create a new disaster report
+  - Body: `{ type: string, location: string, severity: string, notificationToken?: string, phoneNumber?: string }`
+  - Returns: The created disaster object
+  - Will send notifications if token/phone number provided
+
 - `GET /api/disasters/geocode` - Geocode an address
-- `GET /api/weather` - Get weather data for a location 
+  - Query params: `address`
+  - Returns: Google Maps geocoding result
+
+### Weather
+- `GET /api/weather` - Get weather data for a location
+  - Query params: `lat`, `lon`
+  - Returns: OpenWeather data for the coordinates
+
+## Security Notes
+
+- Never commit your `.env` file or `firebase-adminsdk.json` to version control
+- Restrict your API keys in their respective dashboards when possible
+- In production, use environment variables instead of `.env` files 
