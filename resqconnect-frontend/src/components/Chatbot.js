@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Chatbot.css';
 
-const Chatbot = () => {
-  const [isOpen, setIsOpen] = useState(false);
+const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
+  const [isOpen, setIsOpen] = useState(alwaysOpen);
   const [messages, setMessages] = useState([
     { 
       id: 1, 
@@ -21,12 +21,19 @@ const Chatbot = () => {
     }
   }, [messages, isOpen]);
 
+  // If alwaysOpen prop changes, update isOpen state
+  useEffect(() => {
+    setIsOpen(alwaysOpen);
+  }, [alwaysOpen]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const toggleChatbot = () => {
-    setIsOpen(!isOpen);
+    if (!alwaysOpen) {
+      setIsOpen(!isOpen);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -103,27 +110,39 @@ const Chatbot = () => {
     }, 1000);
   };
 
+  const chatbotContainerClassName = `chatbot-container ${embedded ? 'embedded' : ''}`;
+
   return (
-    <div className="chatbot-container">
-      <button 
-        className={`chatbot-toggle ${isOpen ? 'open' : ''}`} 
-        onClick={toggleChatbot}
-      >
-        {isOpen ? (
-          <i className="fas fa-times"></i>
-        ) : (
-          <>
-            <i className="fas fa-comment-dots"></i>
-            <span>Assistance</span>
-          </>
-        )}
-      </button>
+    <div className={chatbotContainerClassName}>
+      {!embedded && (
+        <button 
+          className={`chatbot-toggle ${isOpen ? 'open' : ''}`} 
+          onClick={toggleChatbot}
+        >
+          {isOpen ? (
+            <i className="fas fa-times"></i>
+          ) : (
+            <>
+              <i className="fas fa-comment-dots"></i>
+              <span>Assistance</span>
+            </>
+          )}
+        </button>
+      )}
       
-      {isOpen && (
+      {(isOpen || embedded) && (
         <div className="chatbot-window">
           <div className="chatbot-header">
             <h3>ResQConnect Assistant</h3>
             <p>Ask about disaster assistance and safety</p>
+            {!alwaysOpen && !embedded && (
+              <button 
+                className="chatbot-close" 
+                onClick={toggleChatbot}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            )}
           </div>
           
           <div className="chatbot-messages">

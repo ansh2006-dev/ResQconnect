@@ -38,9 +38,17 @@ const Navbar = () => {
             <i className="fas fa-flag"></i>
             <span>Report</span>
           </NavLink>
+          <NavLink to="/status" className={({isActive}) => isActive ? "navbar-item active" : "navbar-item"} onClick={closeMenu}>
+            <i className="fas fa-tasks"></i>
+            <span>Status</span>
+          </NavLink>
           <NavLink to="/resources" className={({isActive}) => isActive ? "navbar-item active" : "navbar-item"} onClick={closeMenu}>
             <i className="fas fa-book-open"></i>
             <span>Resources</span>
+          </NavLink>
+          <NavLink to="/contact" className={({isActive}) => isActive ? "navbar-item active" : "navbar-item"} onClick={closeMenu}>
+            <i className="fas fa-envelope"></i>
+            <span>Contact Us</span>
           </NavLink>
         </div>
         

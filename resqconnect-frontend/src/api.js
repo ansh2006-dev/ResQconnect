@@ -1,75 +1,48 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-// Create axios instance with base URL
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Configure axios defaults
+axios.defaults.baseURL = API_URL;
 
-// Disaster API functions
-export const getDisasters = async (cursor = null, limit = 5, extraParams = {}) => {
-  // Default to last 12 months if no specific date range is provided
-  if (!extraParams.startDate) {
-    const lastTwelveMonths = new Date();
-    lastTwelveMonths.setMonth(lastTwelveMonths.getMonth() - 12);
-    extraParams.startDate = lastTwelveMonths.toISOString();
-  }
-  
-  const params = { limit, ...extraParams };
-  if (cursor) params.after = cursor;
-  
+// Weather API functions
+export const getWeather = async (city) => {
   try {
-    console.log("Making request to /disasters with params:", params);
-    
-    // Use fetch directly instead of axios for more detailed error tracking
-    const url = new URL(`${API_URL}/disasters`);
-    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-    
-    console.log("Full URL:", url.toString());
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error("API error:", response.status, response.statusText);
-      const errorText = await response.text();
-      console.error("Error response:", errorText);
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    console.log("Raw API response:", data);
-    
-    // Check if the response has the expected structure
-    if (!data) {
-      console.error("Empty response from API");
-      throw new Error("Empty response from API");
-    }
-    
-    return data;
+    const response = await axios.get(`/weather?city=${encodeURIComponent(city)}`);
+    return response.data;
   } catch (error) {
-    console.error('Error fetching disasters:', error);
-    // Return a user-friendly error that we can display
-    throw {
-      message: `Failed to fetch disasters data: ${error.message}`,
-      originalError: error,
-      timestamp: new Date().toISOString()
-    };
+    console.error('Error fetching weather:', error);
+    throw error;
   }
 };
 
+// Add the missing function that WeatherWidget is looking for
+export const getWeatherByLocation = async (location) => {
+  try {
+    const response = await axios.get(`/weather?city=${encodeURIComponent(location)}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching weather by location:', error);
+    throw error;
+  }
+};
+
+// Disasters API functions
+export const getDisasters = async (location) => {
+  try {
+    const params = location ? { location } : {};
+    const response = await axios.get('/disasters', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching disasters:', error);
+    throw error;
+  }
+};
+
+// Report disaster function
 export const reportDisaster = async (disasterData) => {
   try {
-    const response = await api.post('/disasters', disasterData);
+    const response = await axios.post('/disasters', disasterData);
     return response.data;
   } catch (error) {
     console.error('Error reporting disaster:', error);
@@ -77,26 +50,99 @@ export const reportDisaster = async (disasterData) => {
   }
 };
 
-// Weather API functions
-export const getWeatherByLocation = async (location) => {
-  try {
-    const response = await api.get('/weather', { params: { location } });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching weather data:', error);
-    throw error;
-  }
-};
-
-// Geocoding function
+// Geocoding helper function
 export const geocodeAddress = async (address) => {
   try {
-    const response = await api.get('/disasters/geocode', { params: { address } });
-    return response.data;
+    const response = await axios.get(`/disasters/geocode?address=${encodeURIComponent(address)}`);
+    return response.data.results[0];
   } catch (error) {
     console.error('Error geocoding address:', error);
     throw error;
   }
 };
 
-export default api;
+// Report status management functions
+export const getReports = async (filters = {}) => {
+  try {
+    // Ensure filters object is properly formatted
+    const cleanedFilters = {};
+    
+    // Only add non-empty properties to the filter
+    if (filters) {
+      Object.keys(filters).forEach(key => {
+        if (filters[key] && filters[key] !== '') {
+          cleanedFilters[key] = filters[key];
+        }
+      });
+    }
+    
+    console.log('Fetching reports with filters:', cleanedFilters);
+    
+    // Make API request with filters as query parameters
+    const response = await axios.get('/reports', { 
+      params: cleanedFilters,
+      // Add timeout to prevent hanging requests
+      timeout: 5000
+    });
+    
+    // Validate response structure
+    if (response && response.data) {
+      return response.data;
+    } else {
+      throw new Error('Invalid response format');
+    }
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    throw error;
+  }
+};
+
+export const getReportById = async (id) => {
+  try {
+    const response = await axios.get(`/reports/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching report ${id}:`, error);
+    throw error;
+  }
+};
+
+export const updateReportStatus = async (id, status) => {
+  try {
+    const response = await axios.patch(`/reports/${id}`, { status });
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating report ${id} status:`, error);
+    throw error;
+  }
+};
+
+export const addReportAction = async (id, action) => {
+  try {
+    const response = await axios.patch(`/reports/${id}`, { action });
+    return response.data;
+  } catch (error) {
+    console.error(`Error adding action to report ${id}:`, error);
+    throw error;
+  }
+};
+
+export const assignReport = async (id, assignedTo) => {
+  try {
+    const response = await axios.patch(`/reports/${id}`, { assignedTo });
+    return response.data;
+  } catch (error) {
+    console.error(`Error assigning report ${id}:`, error);
+    throw error;
+  }
+};
+
+export const deleteReport = async (id) => {
+  try {
+    const response = await axios.delete(`/reports/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting report ${id}:`, error);
+    throw error;
+  }
+};

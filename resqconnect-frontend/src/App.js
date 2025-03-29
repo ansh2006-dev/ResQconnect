@@ -8,6 +8,8 @@ import Chatbot from './components/Chatbot';
 import Navbar from './components/Navbar';
 import EmergencyPage from './components/EmergencyPage';
 import ResourcesPage from './components/ResourcesPage';
+import StatusDashboard from './components/StatusDashboard';
+import ContactUs from './components/ContactUs';
 
 function App() {
   // Create shared location state
@@ -56,6 +58,8 @@ function App() {
           <Route path="/weather" element={<WeatherWidget fullPage location={location} onLocationChange={handleLocationChange} />} />
           <Route path="/report" element={<ReportForm fullPage location={location} />} />
           <Route path="/resources" element={<ResourcesPage />} />
+          <Route path="/status" element={<StatusDashboard />} />
+          <Route path="/contact" element={<ContactUs />} />
         </Routes>
       </div>
     </Router>
