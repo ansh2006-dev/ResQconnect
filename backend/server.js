@@ -1,6 +1,5 @@
 require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 
 const app = express();
@@ -15,21 +14,15 @@ app.use(cors({
 app.use(express.json());
 
 // Load environment variables
-const { MONGO_URI, PORT } = process.env;
+const { PORT = 5000 } = process.env;
 
 // Connect to MongoDB - TEMPORARILY DISABLED
 console.log("⚠️ MongoDB connection temporarily disabled");
-   
-// Original connection code commented out
-/* 
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-      .then(() => console.log("✅ MongoDB Connected"))
-      .catch(err => console.log("❌ MongoDB Connection Error:", err));
-*/
 
 // Import routes
 const disasterRoutes = require("./routes/disasterRoutes");
 const weatherRoutes = require("./routes/weatherRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
 
 // Add a simple test endpoint
 app.get('/api/test', (req, res) => {
@@ -42,6 +35,7 @@ app.get('/api/test', (req, res) => {
 
 app.use("/api/disasters", disasterRoutes);
 app.use("/api/weather", weatherRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
