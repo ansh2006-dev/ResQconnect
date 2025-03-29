@@ -8,6 +8,7 @@ package-lock.json
 .env.development.local
 .env.test.local
 .env.production.local
+firebase-adminsdk.json
 
 # logs
 npm-debug.log*
