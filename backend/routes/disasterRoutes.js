@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Disaster = require("../models/Disaster");
 const axios = require("axios");
+const { sendNotification } = require("../services/notifications");
+const { sendSms } = require("../services/smsService");
 
 // Fetch disasters with cursor-based pagination
 router.get("/", async (req, res) => {
@@ -14,6 +16,34 @@ router.get("/", async (req, res) => {
         res.json({ data: disasters, nextCursor });
     } catch (error) {
         res.status(500).json({ message: "Error fetching disasters", error });
+    }
+});
+
+// Create a new disaster report
+router.post("/", async (req, res) => {
+    try {
+        const { type, location, severity, notificationToken, phoneNumber } = req.body;
+        
+        // Create and save the disaster
+        const disaster = new Disaster({ type, location, severity });
+        await disaster.save();
+        
+        // Construct alert message
+        const alertMessage = `ALERT: ${severity} ${type} reported in ${location}`;
+        
+        // Send push notification if token provided
+        if (notificationToken) {
+            await sendNotification(notificationToken, alertMessage);
+        }
+        
+        // Send SMS if phone number provided
+        if (phoneNumber) {
+            await sendSms(phoneNumber, alertMessage);
+        }
+        
+        res.status(201).json(disaster);
+    } catch (error) {
+        res.status(500).json({ message: "Error creating disaster report", error });
     }
 });
 
