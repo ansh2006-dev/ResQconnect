@@ -1,5 +1,6 @@
 .App {
-  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .App-logo {
@@ -15,13 +16,63 @@
 
 .App-header {
   background-color: #282c34;
-  min-height: 100vh;
+  color: white;
+  padding: 2rem;
+  text-align: center;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+  margin-top: 2rem;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.App-header p {
+  margin: 0.5rem 0 0;
+  font-size: 1.1rem;
+  color: #B2B9C4;
+}
+
+.App-main {
+  padding: 0 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.App-sections {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 2rem;
+}
+
+.App-section {
+  margin-bottom: 2rem;
+}
+
+.App-section.full-width {
+  width: 100%;
+}
+
+.App-footer {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: #7f8c8d;
+  border-top: 1px solid #e0e0e0;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+  .App-sections {
+    flex-direction: row;
+  }
+  
+  .App-section {
+    flex: 1;
+  }
 }
 
 .App-link {
