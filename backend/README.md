@@ -53,6 +53,57 @@ This is the backend for the ResQConnect disaster management application, built w
    npm run dev
    ```
 
+## DeepSeek AI Integration
+
+The application uses DeepSeek AI for the chatbot functionality.
+
+### Configuration
+
+Set the following environment variables in your `.env` file:
+
+```
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_API_URL=https://api.deepseek.ai/v1
+USE_MOCK_DATA=false
+```
+
+- `DEEPSEEK_API_KEY`: Your DeepSeek API key (required for API access)
+- `DEEPSEEK_API_URL`: The DeepSeek API endpoint URL (should include `/v1`)
+- `USE_MOCK_DATA`: Set to `true` to use local responses instead of calling the DeepSeek API
+
+### Testing the DeepSeek API Connection
+
+To test your DeepSeek API connection:
+
+1. Ensure your API key is correctly set in the `.env` file
+2. Run the test utility:
+   ```
+   node test-deepseek-connection.js
+   ```
+
+This utility will:
+- Verify your environment configuration
+- Test connectivity to the DeepSeek API
+- Display available models
+- Test a simple chat completion
+
+### API Endpoints
+
+- `GET /api/test`: General API test endpoint (includes DeepSeek service status)
+- `GET /api/chatbot/test-connection`: Test the DeepSeek API connection
+- `POST /api/chatbot/message`: Send a message to the chatbot
+
+### Troubleshooting
+
+If you experience issues with the DeepSeek API:
+
+1. Verify your API key is correct and active
+2. Ensure the API URL is correct (should be `https://api.deepseek.ai/v1`)
+3. Check if you're behind a firewall or proxy that might block requests
+4. Set `USE_MOCK_DATA=true` to temporarily use local responses
+
+You can also check the server logs for detailed error information.
+
 ## API Endpoints
 
 ### Disaster Management

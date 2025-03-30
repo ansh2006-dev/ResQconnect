@@ -7,11 +7,13 @@ require('dotenv').config();
 class DeepseekService {
   constructor() {
     this.apiKey = process.env.DEEPSEEK_API_KEY;
-    this.apiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.ai';
+    this.apiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.ai/v1';
+    this.useMockData = process.env.USE_MOCK_DATA === 'true';
     
     console.log('DeepSeek Service initialized');
     console.log(`Using API URL: ${this.apiUrl}`);
     console.log(`API Key exists: ${!!this.apiKey}`);
+    console.log(`Using mock data: ${this.useMockData}`);
     
     if (this.apiKey) {
       console.log(`API Key first few chars: ${this.apiKey.substring(0, 5)}...`);
@@ -19,15 +21,66 @@ class DeepseekService {
       console.warn('WARNING: DeepSeek API key is not set');
     }
     
+    // Ensure the API URL doesn't have duplicate /v1 paths
+    if (this.apiUrl.endsWith('/v1')) {
+      this.baseUrl = this.apiUrl;
+      // Remove /v1 from endpoint paths since it's already in the base URL
+      this.endpointPrefix = '';
+    } else {
+      this.baseUrl = this.apiUrl;
+      // Add /v1 to endpoint paths if not already in the base URL
+      this.endpointPrefix = this.apiUrl.includes('/v1') ? '' : '/v1';
+    }
+    
+    console.log(`Base URL: ${this.baseUrl}`);
+    console.log(`Endpoint prefix: ${this.endpointPrefix || '(none)'}`);
+    
     // Configure axios for DeepSeek API
     this.client = axios.create({
-      baseURL: this.apiUrl,
+      baseURL: this.baseUrl,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`
       },
       timeout: 60000 // 60 second timeout for LLM response
     });
+    
+    // Make a test request to check API connectivity
+    this.testApiConnection();
+  }
+  
+  /**
+   * Test the API connection and log the result
+   */
+  async testApiConnection() {
+    // Skip if using mock data
+    if (this.useMockData) {
+      console.log('Skipping API connection test as mock data is enabled');
+      return;
+    }
+    
+    // Skip if API key is not set properly
+    if (!this.apiKey || this.apiKey === 'your_deepseek_api_key_here') {
+      console.warn('Skipping API connection test as no valid API key is set');
+      return;
+    }
+    
+    try {
+      console.log('Testing DeepSeek API connection...');
+      // Make a minimal request just to test connectivity
+      const modelsEndpoint = `${this.endpointPrefix}/models`;
+      console.log(`Requesting: ${this.baseUrl}${modelsEndpoint}`);
+      const response = await this.client.get(modelsEndpoint);
+      console.log('✅ DeepSeek API connection successful');
+      console.log('Available models:', JSON.stringify(response.data, null, 2));
+    } catch (error) {
+      console.error('❌ DeepSeek API connection failed');
+      console.error('Error details:', error.message);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+      }
+    }
   }
 
   /**
@@ -43,7 +96,7 @@ class DeepseekService {
     console.log(`Conversation history length: ${conversationHistory.length}`);
     
     // Check if we should use mock data instead of the API
-    if (process.env.USE_MOCK_DATA === 'true') {
+    if (this.useMockData) {
       console.log('Using mock data instead of DeepSeek API');
       return this.getLocalResponse(userInput);
     }
@@ -95,8 +148,8 @@ Always prioritize safety and official guidance from emergency management authori
         temperature: 0.7
       };
       
-      const endpoint = '/v1/chat/completions'; // Use v1 endpoint for OpenAI-compatible API
-      console.log('Sending request to DeepSeek API endpoint:', `${this.apiUrl}${endpoint}`);
+      const endpoint = `${this.endpointPrefix}/chat/completions`;
+      console.log('Sending request to DeepSeek API endpoint:', `${this.baseUrl}${endpoint}`);
       
       // Make API request to DeepSeek
       const response = await this.client.post(endpoint, requestPayload);

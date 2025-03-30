@@ -13,6 +13,9 @@ app.use(cors({
 
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Load environment variables
 const { PORT = 5000 } = process.env;
 
@@ -24,12 +27,96 @@ const disasterRoutes = require("./routes/disasterRoutes");
 const weatherRoutes = require("./routes/weatherRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
 
-// Add a simple test endpoint
+// Import the DeepSeek service for the enhanced test endpoint
+const deepseekService = require("./services/deepseekService");
+
+// Enhanced test endpoint with DeepSeek service status
 app.get('/api/test', (req, res) => {
+  const deepseekStatus = {
+    apiKeyConfigured: !!deepseekService.apiKey && deepseekService.apiKey !== 'your_deepseek_api_key_here',
+    apiUrl: deepseekService.apiUrl,
+    useMockData: deepseekService.useMockData
+  };
+
   res.json({
     success: true,
     message: 'API is working correctly',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    services: {
+      deepseek: deepseekStatus
+    }
+  });
+});
+
+// Dedicated endpoint to test DeepSeek API connection
+app.get('/api/chatbot/test-connection', async (req, res) => {
+  try {
+    console.log('Testing DeepSeek API connection via endpoint...');
+    
+    // Skip if using mock data or no valid API key
+    if (deepseekService.useMockData) {
+      return res.json({
+        success: true,
+        status: 'skipped',
+        message: 'DeepSeek API connection test skipped - mock data is enabled',
+        mockDataEnabled: true
+      });
+    }
+    
+    if (!deepseekService.apiKey || deepseekService.apiKey === 'your_deepseek_api_key_here') {
+      return res.json({
+        success: false,
+        status: 'no_api_key',
+        message: 'DeepSeek API key not configured properly',
+        apiKeyConfigured: false
+      });
+    }
+    
+    // Try to connect to the API
+    const client = deepseekService.client;
+    const modelsEndpoint = `${deepseekService.endpointPrefix}/models`;
+    console.log(`Requesting: ${deepseekService.baseUrl}${modelsEndpoint}`);
+    const response = await client.get(modelsEndpoint);
+    
+    return res.json({
+      success: true,
+      status: 'connected',
+      message: 'Successfully connected to DeepSeek API',
+      models: response.data.data || response.data,
+      apiKeyConfigured: true,
+      apiUrl: deepseekService.apiUrl,
+      baseUrl: deepseekService.baseUrl
+    });
+  } catch (error) {
+    console.error('DeepSeek API connection test failed:', error.message);
+    
+    return res.status(500).json({
+      success: false,
+      status: 'error',
+      message: 'Failed to connect to DeepSeek API',
+      error: error.message,
+      responseStatus: error.response?.status,
+      responseData: error.response?.data,
+      apiKeyConfigured: !!deepseekService.apiKey,
+      apiUrl: deepseekService.apiUrl,
+      baseUrl: deepseekService.baseUrl,
+      endpointPrefix: deepseekService.endpointPrefix
+    });
+  }
+});
+
+// Endpoint to toggle mock data mode
+app.post('/api/chatbot/toggle-mock-mode', (req, res) => {
+  // Toggle the mock data flag in the service
+  deepseekService.useMockData = !deepseekService.useMockData;
+  
+  console.log(`Mock data mode ${deepseekService.useMockData ? 'enabled' : 'disabled'}`);
+  
+  return res.json({
+    success: true,
+    mockDataEnabled: deepseekService.useMockData,
+    message: `Mock data mode ${deepseekService.useMockData ? 'enabled' : 'disabled'}`
   });
 });
 

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResQConnect Chatbot Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .card {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #3498db;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #apiResponse {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        .messages {
+            margin-top: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 80%;
+            clear: both;
+        }
+        .user {
+            background-color: #dcf8c6;
+            float: right;
+        }
+        .bot {
+            background-color: #f0f0f0;
+            float: left;
+        }
+        .clearfix {
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ResQConnect Chatbot Test</h1>
+        
+        <div class="card">
+            <h2>API Connection Status</h2>
+            <div class="form-group">
+                <button id="testConnection">Test API Connection</button>
+                <button id="toggleMockMode" style="margin-left: 10px; background-color: #e67e22;">Toggle Mock Data Mode</button>
+            </div>
+            <div id="connectionStatus">Status: Unknown</div>
+            <div id="mockStatus" style="margin-top: 5px; font-weight: bold;">Mock Data: Unknown</div>
+        </div>
+        
+        <div class="card">
+            <h2>Chat with Bot</h2>
+            <div class="messages" id="chatMessages">
+                <div class="message bot">Hi there! I'm your ResQConnect assistant. How can I help you today?</div>
+                <div class="clearfix"></div>
+            </div>
+            <div class="form-group">
+                <label for="chatMessage">Your Message:</label>
+                <div style="display: flex;">
+                    <input type="text" id="chatMessage" placeholder="Type your message here...">
+                    <button id="sendMessage" style="width: 80px; margin-left: 10px;">Send</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <button class="quickQuestion" data-question="How to prepare for a flood?">How to prepare for a flood?</button>
+                <button class="quickQuestion" data-question="What should be in my emergency kit?">Emergency kit contents?</button>
+                <button class="quickQuestion" data-question="What to do during an earthquake?">Earthquake safety?</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Raw API Response</h2>
+            <div id="apiResponse">Response will appear here</div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:5001/api';
+        
+        // Elements
+        const testConnectionBtn = document.getElementById('testConnection');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const chatMessageInput = document.getElementById('chatMessage');
+        const sendMessageBtn = document.getElementById('sendMessage');
+        const chatMessages = document.getElementById('chatMessages');
+        const apiResponse = document.getElementById('apiResponse');
+        const quickQuestions = document.querySelectorAll('.quickQuestion');
+        const toggleMockModeBtn = document.getElementById('toggleMockMode');
+        const mockStatus = document.getElementById('mockStatus');
+        
+        // Event listeners
+        testConnectionBtn.addEventListener('click', testConnection);
+        sendMessageBtn.addEventListener('click', sendChatMessage);
+        toggleMockModeBtn.addEventListener('click', toggleMockMode);
+        chatMessageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+        
+        // Set up quick questions
+        quickQuestions.forEach(btn => {
+            btn.addEventListener('click', () => {
+                chatMessageInput.value = btn.dataset.question;
+                sendChatMessage();
+            });
+        });
+        
+        // Function to test API connection
+        async function testConnection() {
+            connectionStatus.textContent = 'Status: Testing connection...';
+            try {
+                // First test general API connection
+                const response = await fetch(`${API_URL}/test`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show mock data status
+                    if (data.services && data.services.deepseek) {
+                        const mockEnabled = data.services.deepseek.useMockData;
+                        mockStatus.textContent = `Mock Data: ${mockEnabled ? 'Enabled' : 'Disabled'}`;
+                        mockStatus.style.color = mockEnabled ? 'blue' : 'green';
+                    }
+                    
+                    // Now test DeepSeek specific endpoint
+                    try {
+                        const dsResponse = await fetch(`${API_URL}/chatbot/test-connection`);
+                        const dsData = await dsResponse.json();
+                        
+                        if (dsData.success && dsData.status === 'connected') {
+                            connectionStatus.textContent = 'Status: Connected to DeepSeek API ✅';
+                            connectionStatus.style.color = 'green';
+                        } else if (dsData.status === 'skipped') {
+                            connectionStatus.textContent = 'Status: API in mock data mode (skipped connection test) ✅';
+                            connectionStatus.style.color = 'blue';
+                        } else {
+                            connectionStatus.textContent = `Status: DeepSeek API issue - ${dsData.message} ⚠️`;
+                            connectionStatus.style.color = 'orange';
+                        }
+                        
+                        apiResponse.textContent = JSON.stringify(dsData, null, 2);
+                    } catch (dsError) {
+                        connectionStatus.textContent = 'Status: DeepSeek API connection failed ❌';
+                        connectionStatus.style.color = 'red';
+                        apiResponse.textContent = dsError.toString();
+                    }
+                } else {
+                    connectionStatus.textContent = 'Status: API connection failed ❌';
+                    connectionStatus.style.color = 'red';
+                    apiResponse.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                connectionStatus.textContent = 'Status: API connection failed ❌';
+                connectionStatus.style.color = 'red';
+                apiResponse.textContent = error.toString();
+            }
+        }
+        
+        // Function to toggle mock data mode
+        async function toggleMockMode() {
+            try {
+                toggleMockModeBtn.disabled = true;
+                toggleMockModeBtn.textContent = 'Toggling...';
+                
+                const response = await fetch(`${API_URL}/chatbot/toggle-mock-mode`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    mockStatus.textContent = `Mock Data: ${data.mockDataEnabled ? 'Enabled' : 'Disabled'}`;
+                    mockStatus.style.color = data.mockDataEnabled ? 'blue' : 'green';
+                    
+                    // Add a notification message
+                    addMessage(`System: Mock data mode ${data.mockDataEnabled ? 'enabled' : 'disabled'}. ${data.mockDataEnabled ? 'Using local responses' : 'Using DeepSeek API'}`, 'bot');
+                    
+                    // Update API response display
+                    apiResponse.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Test the connection to update status
+                    await testConnection();
+                }
+            } catch (error) {
+                apiResponse.textContent = `Error toggling mock data mode: ${error.toString()}`;
+                addMessage('System: Failed to toggle mock data mode', 'bot');
+            } finally {
+                toggleMockModeBtn.disabled = false;
+                toggleMockModeBtn.textContent = 'Toggle Mock Data Mode';
+            }
+        }
+        
+        // Function to send a chat message
+        async function sendChatMessage() {
+            const message = chatMessageInput.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            chatMessageInput.value = '';
+            
+            try {
+                const response = await fetch(`${API_URL}/chatbot/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                apiResponse.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success && data.response) {
+                    // Add bot response to chat
+                    addMessage(data.response, 'bot');
+                } else {
+                    // Add error message
+                    addMessage('Sorry, I encountered an error processing your request.', 'bot');
+                }
+            } catch (error) {
+                apiResponse.textContent = error.toString();
+                // Add error message
+                addMessage('Sorry, I experienced a technical issue. Please try again later.', 'bot');
+            }
+        }
+        
+        // Function to add a message to the chat
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.textContent = text;
+            
+            const clearfix = document.createElement('div');
+            clearfix.className = 'clearfix';
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.appendChild(clearfix);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Test connection on page load
+        testConnection();
+    </script>
+</body>
+</html> 

@@ -1,42 +1,42 @@
 import axios from 'axios';
+import { formatLocation, isValidLocation, encodeLocationForUrl } from './utils/locationUtils';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-// Configure axios defaults
-axios.defaults.baseURL = API_URL;
+// Configure API base URL
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: 10000
+});
 
 // Weather API functions
 export const getWeather = async (city) => {
   try {
-    const response = await axios.get(`/weather?city=${encodeURIComponent(city)}`);
-    console.log('Weather API response:', response.data);
-    
-    if (response.data && response.data.success) {
-      return response.data.data;
-    } else if (response.data) {
-      return response.data;
+    if (!isValidLocation(city)) {
+      throw new Error('Valid city name is required');
     }
     
-    throw new Error('Invalid weather data format');
+    const encodedCity = encodeLocationForUrl(city);
+    const response = await api.get(`/weather?city=${encodedCity}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching weather:', error);
     throw error;
   }
 };
 
-// Add the missing function that WeatherWidget is looking for
+/**
+ * Get weather data for a location
+ */
 export const getWeatherByLocation = async (location) => {
   try {
-    const response = await axios.get(`/weather?location=${encodeURIComponent(location)}`);
-    console.log('Weather by location API response:', response.data);
-    
-    if (response.data && response.data.success) {
-      return response.data.data;
-    } else if (response.data) {
-      return response.data;
+    if (!isValidLocation(location)) {
+      throw new Error('Valid location is required for weather lookup');
     }
     
-    throw new Error('Invalid weather data format');
+    const encodedLocation = encodeLocationForUrl(location);
+    const response = await api.get(`/weather/location/${encodedLocation}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching weather by location:', error);
     throw error;
@@ -47,7 +47,7 @@ export const getWeatherByLocation = async (location) => {
 export const getDisasters = async (location) => {
   try {
     const params = location ? { location } : {};
-    const response = await axios.get('/disasters', { params });
+    const response = await api.get('/disasters', { params });
     return response.data;
   } catch (error) {
     console.error('Error fetching disasters:', error);
@@ -58,7 +58,7 @@ export const getDisasters = async (location) => {
 // Report disaster function
 export const reportDisaster = async (disasterData) => {
   try {
-    const response = await axios.post('/disasters', disasterData);
+    const response = await api.post('/disasters', disasterData);
     return response.data;
   } catch (error) {
     console.error('Error reporting disaster:', error);
@@ -69,7 +69,7 @@ export const reportDisaster = async (disasterData) => {
 // Geocoding helper function
 export const geocodeAddress = async (address) => {
   try {
-    const response = await axios.get(`/disasters/geocode?address=${encodeURIComponent(address)}`);
+    const response = await api.get(`/disasters/geocode?address=${encodeURIComponent(address)}`);
     return response.data.results[0];
   } catch (error) {
     console.error('Error geocoding address:', error);
@@ -95,7 +95,7 @@ export const getReports = async (filters = {}) => {
     console.log('Fetching reports with filters:', cleanedFilters);
     
     // Make API request with filters as query parameters
-    const response = await axios.get('/reports', { 
+    const response = await api.get('/reports', { 
       params: cleanedFilters,
       // Add timeout to prevent hanging requests
       timeout: 5000
@@ -115,7 +115,7 @@ export const getReports = async (filters = {}) => {
 
 export const getReportById = async (id) => {
   try {
-    const response = await axios.get(`/reports/${id}`);
+    const response = await api.get(`/reports/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching report ${id}:`, error);
@@ -125,7 +125,7 @@ export const getReportById = async (id) => {
 
 export const updateReportStatus = async (id, status) => {
   try {
-    const response = await axios.patch(`/reports/${id}`, { status });
+    const response = await api.patch(`/reports/${id}`, { status });
     return response.data;
   } catch (error) {
     console.error(`Error updating report ${id} status:`, error);
@@ -135,7 +135,7 @@ export const updateReportStatus = async (id, status) => {
 
 export const addReportAction = async (id, action) => {
   try {
-    const response = await axios.patch(`/reports/${id}`, { action });
+    const response = await api.patch(`/reports/${id}`, { action });
     return response.data;
   } catch (error) {
     console.error(`Error adding action to report ${id}:`, error);
@@ -145,7 +145,7 @@ export const addReportAction = async (id, action) => {
 
 export const assignReport = async (id, assignedTo) => {
   try {
-    const response = await axios.patch(`/reports/${id}`, { assignedTo });
+    const response = await api.patch(`/reports/${id}`, { assignedTo });
     return response.data;
   } catch (error) {
     console.error(`Error assigning report ${id}:`, error);
@@ -155,10 +155,13 @@ export const assignReport = async (id, assignedTo) => {
 
 export const deleteReport = async (id) => {
   try {
-    const response = await axios.delete(`/reports/${id}`);
+    const response = await api.delete(`/reports/${id}`);
     return response.data;
   } catch (error) {
-    console.error(`Error deleting report ${id}:`, error);
+    console.error('Error deleting report:', error);
     throw error;
   }
 };
+
+// Export the api instance for direct use in components
+export default api;

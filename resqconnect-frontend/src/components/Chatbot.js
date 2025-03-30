@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import api from '../api';
 import './Chatbot.css';
-import axios from 'axios';
 
 const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
   const [isOpen, setIsOpen] = useState(alwaysOpen);
@@ -13,6 +13,7 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [apiStatus, setApiStatus] = useState('unknown'); // 'connected', 'disconnected', 'unknown'
   const [suggestions, setSuggestions] = useState([
     "How to prepare for a flood?",
     "What should be in my emergency kit?",
@@ -28,8 +29,50 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
     process.env.REACT_APP_API_URL || 'http://localhost:5001/api',
   []);
   
-  // Set to false to use actual DeepSeek API
-  const DEMO_MODE = false; 
+  // Set to true to use local responses instead of API
+  const DEMO_MODE = true;
+  
+  // Check API connectivity on component mount
+  useEffect(() => {
+    checkApiConnection();
+  }, []);
+
+  // Check the API connection with the backend
+  const checkApiConnection = async () => {
+    try {
+      // First check if backend is running
+      const apiResponse = await api.get('/test', { timeout: 5000 });
+      
+      if (apiResponse.data && apiResponse.data.success) {
+        console.log('Backend API is connected:', apiResponse.data);
+        
+        // If backend is connected, check DeepSeek API specifically
+        try {
+          const deepseekResponse = await api.get('/chatbot/test-connection', { timeout: 10000 });
+          
+          if (deepseekResponse.data.success && deepseekResponse.data.status === 'connected') {
+            console.log('DeepSeek API is connected:', deepseekResponse.data);
+            setApiStatus('connected');
+          } else if (deepseekResponse.data.status === 'skipped') {
+            console.log('DeepSeek API check skipped (mock data enabled):', deepseekResponse.data);
+            setApiStatus('connected'); // Consider it connected if using mock data
+          } else {
+            console.warn('DeepSeek API connection issue:', deepseekResponse.data);
+            setApiStatus('disconnected');
+          }
+        } catch (deepseekError) {
+          console.error('DeepSeek API check failed:', deepseekError.message);
+          setApiStatus('disconnected');
+        }
+      } else {
+        console.warn('Backend API returned unexpected response:', apiResponse.data);
+        setApiStatus('disconnected');
+      }
+    } catch (error) {
+      console.error('Backend API connection failed:', error.message);
+      setApiStatus('disconnected');
+    }
+  };
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -168,14 +211,18 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
     try {
       let botResponse;
       
-      if (DEMO_MODE) {
-        // Use local responses in demo mode
+      if (DEMO_MODE || apiStatus !== 'connected') {
+        // Use local responses in demo mode or when API is disconnected
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
         botResponse = { 
           id: messages.length + 2, 
           text: getLocalResponse(input), 
           sender: 'bot' 
         };
+        
+        if (apiStatus !== 'connected') {
+          console.log('Using local response because API is disconnected');
+        }
       } else {
         // Use actual DeepSeek API via backend
         console.log('Sending request to DeepSeek API via backend');
@@ -185,11 +232,11 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
         }));
         
         try {
-          const response = await axios.post(`${API_URL}/chatbot/message`, {
+          const response = await api.post('/chatbot/message', {
             message: input,
             conversationHistory: conversationHistory
           }, {
-            timeout: 10000 // Set timeout to 10 seconds
+            timeout: 15000 // Increased timeout to 15 seconds for LLM processing
           });
           
           console.log('DeepSeek API response:', response.data);
@@ -200,6 +247,9 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
               text: response.data.response, 
               sender: 'bot' 
             };
+            
+            // If we get a successful response, update API status
+            setApiStatus('connected');
           } else {
             throw new Error('Invalid API response format');
           }
@@ -211,6 +261,12 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
             text: getLocalResponse(input),
             sender: 'bot' 
           };
+          
+          // Update API status on error
+          setApiStatus('disconnected');
+          
+          // Try to reconnect in the background
+          checkApiConnection();
         }
       }
       
@@ -229,6 +285,9 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
         sender: 'bot' 
       };
       setMessages(prev => [...prev, fallbackResponse]);
+      
+      // Update API status on error
+      setApiStatus('disconnected');
     } finally {
       setLoading(false);
     }

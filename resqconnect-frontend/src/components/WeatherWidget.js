@@ -37,6 +37,37 @@ const WeatherWidget = ({ location, onLocationChange }) => {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        if (!location) {
+          console.log('No location provided to WeatherWidget');
+          return;
+        }
+        
+        setLoading(true);
+        setError(null);
+        
+        const locationStr = String(location).trim();
+        if (!locationStr) {
+          setError('Invalid location');
+          setLoading(false);
+          return;
+        }
+        
+        const weatherData = await getWeatherByLocation(locationStr);
+        setWeatherData(weatherData);
+        setLoading(false);
+      } catch (err) {
+        console.error('Weather widget error:', err);
+        setError(err.message || 'Failed to fetch weather data');
+        setLoading(false);
+      }
+    };
+    
+    fetchWeather();
+  }, [location]);
+
   const fetchWeatherByCoords = async (latitude, longitude) => {
     try {
       setLoading(true);
