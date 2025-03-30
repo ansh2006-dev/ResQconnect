@@ -7,7 +7,7 @@ require('dotenv').config();
 class DeepseekService {
   constructor() {
     this.apiKey = process.env.DEEPSEEK_API_KEY;
-    this.apiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com';
+    this.apiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.ai';
     
     console.log('DeepSeek Service initialized');
     console.log(`Using API URL: ${this.apiUrl}`);
@@ -41,6 +41,12 @@ class DeepseekService {
     console.log('------- DeepSeek API Request -------');
     console.log(`User input: "${userInput}"`);
     console.log(`Conversation history length: ${conversationHistory.length}`);
+    
+    // Check if we should use mock data instead of the API
+    if (process.env.USE_MOCK_DATA === 'true') {
+      console.log('Using mock data instead of DeepSeek API');
+      return this.getLocalResponse(userInput);
+    }
     
     // Check for API key before making request
     if (!this.apiKey || this.apiKey === 'your_deepseek_api_key_here') {
@@ -77,29 +83,28 @@ Always prioritize safety and official guidance from emergency management authori
       ];
 
       console.log('Prepared messages for API:');
-      console.log(JSON.stringify(messages, null, 2));
+      console.log(JSON.stringify(messages.slice(0, 2), null, 2)); // Only log first two messages to avoid clutter
 
       // Define model name based on availability
-      // Options could be 'deepseek-chat', 'deepseek-coder', etc.
-      const model = 'deepseek-chat';
+      const model = 'deepseek-chat'; // DeepSeek's main chat model
       
       const requestPayload = {
         model: model,
         messages: messages,
         max_tokens: 800,
-        temperature: 0.7,
-        stream: false
+        temperature: 0.7
       };
       
-      console.log('Sending request to DeepSeek API endpoint:', `${this.apiUrl}/chat/completions`);
+      const endpoint = '/v1/chat/completions'; // Use v1 endpoint for OpenAI-compatible API
+      console.log('Sending request to DeepSeek API endpoint:', `${this.apiUrl}${endpoint}`);
       
       // Make API request to DeepSeek
-      const response = await this.client.post('/chat/completions', requestPayload);
+      const response = await this.client.post(endpoint, requestPayload);
 
       console.log('DeepSeek API response received');
       console.log('Response status:', response.status);
       
-      // Check if response has the expected structure
+      // Check if response has the expected structure (OpenAI-compatible format)
       if (response.data && 
           response.data.choices && 
           response.data.choices.length > 0 && 
@@ -120,12 +125,10 @@ Always prioritize safety and official guidance from emergency management authori
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
         console.error('Response status:', error.response.status);
-        console.error('Response headers:', JSON.stringify(error.response.headers, null, 2));
         console.error('Response data:', JSON.stringify(error.response.data, null, 2));
       } else if (error.request) {
         // The request was made but no response was received
         console.error('No response received');
-        console.error('Request:', error.request._header);
       } else {
         // Something happened in setting up the request that triggered an Error
         console.error('Error setting up request:', error.message);
@@ -135,6 +138,43 @@ Always prioritize safety and official guidance from emergency management authori
       
       return this.getFallbackResponse();
     }
+  }
+  
+  /**
+   * Get a local response for a specific question (for when API is unavailable)
+   * @param {string} message - The user's message
+   * @returns {string} A predefined response based on message content
+   */
+  getLocalResponse(message) {
+    const lowerMessage = message.toLowerCase();
+    
+    // Emergency contacts
+    if (lowerMessage.includes('emergency') || lowerMessage.includes('help') || lowerMessage.includes('contact')) {
+      return "For immediate assistance, call emergency services at 911. You can also contact the local disaster management office at 1-800-555-HELP or use the Report Form on this website to alert authorities to a situation.";
+    }
+    
+    // Earthquake
+    if (lowerMessage.includes('earthquake')) {
+      return "During an earthquake: DROP to the ground, COVER by getting under sturdy furniture, and HOLD ON until the shaking stops. Stay away from windows and exterior walls. If outdoors, move to an open area away from buildings and power lines. After an earthquake, check for injuries and damage, be prepared for aftershocks, and listen to emergency broadcasts for instructions.";
+    }
+    
+    // Flood
+    if (lowerMessage.includes('flood')) {
+      return "For flood safety: Move to higher ground immediately. Avoid walking or driving through flood waters - just 6 inches of moving water can knock you down, and 1 foot of water can sweep your vehicle away. If evacuation is ordered, do so immediately. Disconnect utilities if instructed and avoid electrical equipment if wet. After flooding, be aware of contaminated water and damaged roads or buildings.";
+    }
+    
+    // Fire
+    if (lowerMessage.includes('fire')) {
+      return "In case of fire: Evacuate immediately. Crawl low under smoke. Use the back of your hand to check for heat before opening doors. If clothes catch fire - stop, drop, and roll. Call 911 once you're safely outside. If trapped, close doors between you and the fire, seal door cracks with wet towels if possible, and signal for help from a window. Have a household fire escape plan with two ways out of each room.";
+    }
+    
+    // Hurricane
+    if (lowerMessage.includes('hurricane') || lowerMessage.includes('cyclone')) {
+      return "For hurricane preparedness: Create an emergency plan and supply kit before hurricane season. When a hurricane warning is issued, secure outside furniture, close storm shutters, and follow evacuation orders immediately if given. During a hurricane, stay indoors away from windows, monitor emergency broadcasts, and be aware of the 'eye' of the hurricane which may create a temporary lull before winds return from the opposite direction.";
+    }
+    
+    // Default response
+    return "I'm your ResQConnect assistant specializing in emergency response. I can provide information about disaster preparedness, evacuation procedures, and emergency resources. For specific guidance, please ask about earthquakes, floods, fires, hurricanes, or other emergency situations. Remember, in any immediate danger, always call 911 first.";
   }
   
   /**

@@ -9,7 +9,15 @@ axios.defaults.baseURL = API_URL;
 export const getWeather = async (city) => {
   try {
     const response = await axios.get(`/weather?city=${encodeURIComponent(city)}`);
-    return response.data;
+    console.log('Weather API response:', response.data);
+    
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else if (response.data) {
+      return response.data;
+    }
+    
+    throw new Error('Invalid weather data format');
   } catch (error) {
     console.error('Error fetching weather:', error);
     throw error;
@@ -19,8 +27,16 @@ export const getWeather = async (city) => {
 // Add the missing function that WeatherWidget is looking for
 export const getWeatherByLocation = async (location) => {
   try {
-    const response = await axios.get(`/weather?city=${encodeURIComponent(location)}`);
-    return response.data;
+    const response = await axios.get(`/weather?location=${encodeURIComponent(location)}`);
+    console.log('Weather by location API response:', response.data);
+    
+    if (response.data && response.data.success) {
+      return response.data.data;
+    } else if (response.data) {
+      return response.data;
+    }
+    
+    throw new Error('Invalid weather data format');
   } catch (error) {
     console.error('Error fetching weather by location:', error);
     throw error;

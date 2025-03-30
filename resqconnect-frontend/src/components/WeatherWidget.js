@@ -87,34 +87,43 @@ const WeatherWidget = ({ location, onLocationChange }) => {
     }
   };
 
-  const getWeatherIcon = (condition) => {
-    // Map weather condition to appropriate icon
-    // This is a simple implementation that could be expanded
-    if (!condition) return 'fa-question';
+  const getWeatherIcon = (icon) => {
+    if (!icon) return 'fa-cloud';
     
-    const lowerCondition = condition.toLowerCase();
+    // Map OpenWeatherMap icon codes to Font Awesome icons
+    const iconMap = {
+      '01d': 'fa-sun',            // clear sky day
+      '01n': 'fa-moon',           // clear sky night
+      '02d': 'fa-cloud-sun',      // few clouds day
+      '02n': 'fa-cloud-moon',     // few clouds night
+      '03d': 'fa-cloud',          // scattered clouds
+      '03n': 'fa-cloud',
+      '04d': 'fa-cloud',          // broken clouds
+      '04n': 'fa-cloud',
+      '09d': 'fa-cloud-showers-heavy', // shower rain
+      '09n': 'fa-cloud-showers-heavy',
+      '10d': 'fa-cloud-rain',     // rain day
+      '10n': 'fa-cloud-rain',     // rain night
+      '11d': 'fa-bolt',           // thunderstorm
+      '11n': 'fa-bolt',
+      '13d': 'fa-snowflake',      // snow
+      '13n': 'fa-snowflake',
+      '50d': 'fa-smog',           // mist
+      '50n': 'fa-smog'
+    };
     
-    if (lowerCondition.includes('clear') || lowerCondition.includes('sunny')) {
-      return 'fa-sun';
-    } else if (lowerCondition.includes('cloud')) {
-      return 'fa-cloud';
-    } else if (lowerCondition.includes('rain') || lowerCondition.includes('drizzle')) {
-      return 'fa-cloud-rain';
-    } else if (lowerCondition.includes('thunder') || lowerCondition.includes('storm')) {
-      return 'fa-bolt';
-    } else if (lowerCondition.includes('snow')) {
-      return 'fa-snowflake';
-    } else if (lowerCondition.includes('fog') || lowerCondition.includes('mist')) {
-      return 'fa-smog';
-    } else {
-      return 'fa-cloud';
-    }
+    return iconMap[icon] || 'fa-cloud';
+  };
+
+  // Format date from Unix timestamp
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
   return (
     <div className="weather-widget">
-      {weatherData && console.log('Weather data available:', weatherData)}
-      
       <div className="weather-header">
         <h2>Current Weather</h2>
         <p>Stay updated on weather conditions</p>
@@ -148,12 +157,17 @@ const WeatherWidget = ({ location, onLocationChange }) => {
           
           <div className="weather-info">
             <div className="weather-icon">
-              <i className={`fas fa-cloud`}></i>
-              <span>{weatherData.weather && weatherData.weather[0] ? weatherData.weather[0].description : 'Unknown'}</span>
+              {weatherData.weather && weatherData.weather[0] && (
+                <>
+                  <i className={`fas ${getWeatherIcon(weatherData.weather[0].icon)}`}></i>
+                  <span>{weatherData.weather[0].description}</span>
+                </>
+              )}
             </div>
             
             <div className="weather-temp">
               <span className="temp">{weatherData.main?.temp ? Math.round(weatherData.main.temp) : '?'}°C</span>
+              <span className="feels-like">Feels like: {weatherData.main?.feels_like ? Math.round(weatherData.main.feels_like) : '?'}°C</span>
             </div>
           </div>
           
@@ -175,21 +189,25 @@ const WeatherWidget = ({ location, onLocationChange }) => {
             </div>
           </div>
           
-          {/* Alert display section */}
-          {weatherData.alerts && weatherData.alerts.alert.length > 0 && (
-            <div className="weather-alerts">
-              <h4>Weather Alerts</h4>
-              <ul>
-                {weatherData.alerts.alert.map((alert, index) => (
-                  <li key={index} className="alert-item">
-                    <i className="fas fa-exclamation-triangle"></i>
-                    <div className="alert-content">
-                      <p className="alert-title">{alert.headline}</p>
-                      <p className="alert-desc">{alert.desc}</p>
+          {/* Forecast display section */}
+          {weatherData.forecast && weatherData.forecast.list && weatherData.forecast.list.length > 0 && (
+            <div className="forecast-container">
+              <h4>4-Day Forecast</h4>
+              <div className="forecast-days">
+                {weatherData.forecast.list.map((day, index) => (
+                  <div key={index} className="forecast-day">
+                    <div className="forecast-date">{formatDate(day.dt)}</div>
+                    <div className="forecast-icon">
+                      <i className={`fas ${getWeatherIcon(day.weather[0]?.icon)}`}></i>
                     </div>
-                  </li>
+                    <div className="forecast-temp">
+                      <span className="high">{Math.round(day.main.temp_max)}°</span>
+                      <span className="low">{Math.round(day.main.temp_min)}°</span>
+                    </div>
+                    <div className="forecast-desc">{day.weather[0]?.description}</div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </div>

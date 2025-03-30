@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './EmergencyPage.css';
 import DisasterList from './DisasterList';
-import Chatbot from './Chatbot';
+import { useLocation } from '../App'; // Import the location context
 
-const EmergencyPage = ({ location }) => {
-  const [emergencyContacts, setEmergencyContacts] = useState([
+const EmergencyPage = () => {
+  // Use the location context instead of props
+  const { location } = useLocation();
+  
+  // Use memoized state for static data to avoid unnecessary re-renders
+  const emergencyContacts = React.useMemo(() => [
     { id: 1, name: 'Emergency Services', number: '911', icon: 'ambulance' },
     { id: 2, name: 'Police Department', number: '555-123-4567', icon: 'shield-alt' },
     { id: 3, name: 'Fire Department', number: '555-765-4321', icon: 'fire' },
     { id: 4, name: 'Poison Control', number: '800-222-1222', icon: 'skull-crossbones' },
     { id: 5, name: 'Disaster Hotline', number: '800-985-5990', icon: 'phone-alt' }
-  ]);
+  ], []);
   
-  const [emergencyTips, setEmergencyTips] = useState([
+  const emergencyTips = React.useMemo(() => [
     {
       id: 1,
       title: 'Earthquake Safety',
@@ -37,9 +41,30 @@ const EmergencyPage = ({ location }) => {
       content: 'Board up windows and secure outdoor items. Prepare an emergency kit. Follow evacuation orders immediately.',
       icon: 'wind'
     }
-  ]);
+  ], []);
   
   const [activeTab, setActiveTab] = useState('disasters');
+  const [alertVisible, setAlertVisible] = useState(true);
+  
+  // Improved chatbot opener with fallback mechanism
+  const openChatbot = () => {
+    try {
+      // Try to find the chatbot toggle button
+      const chatbotToggle = document.querySelector('.chatbot-toggle');
+      if (chatbotToggle) {
+        chatbotToggle.click();
+      } else {
+        // Dispatch a custom event as a fallback if button not found
+        const event = new CustomEvent('open-chatbot');
+        document.dispatchEvent(event);
+        console.log('Dispatched open-chatbot event');
+      }
+    } catch (error) {
+      console.error('Error opening chatbot:', error);
+      // Alert the user to try manually if both methods fail
+      alert('Please click the chat icon in the bottom right corner to speak with an assistant.');
+    }
+  };
   
   return (
     <div className="emergency-page">
@@ -74,18 +99,25 @@ const EmergencyPage = ({ location }) => {
         </div>
       </div>
       
-      <div className="emergency-alert">
-        <i className="fas fa-bell"></i>
-        <p><strong>Alert:</strong> Flash flood warning in effect until 8:00 PM. Avoid low-lying areas.</p>
-        <button className="dismiss-btn">
-          <i className="fas fa-times"></i>
-        </button>
-      </div>
+      {alertVisible && (
+        <div className="emergency-alert">
+          <i className="fas fa-bell"></i>
+          <p><strong>Alert:</strong> Flash flood warning in effect until 8:00 PM. Avoid low-lying areas.</p>
+          <button 
+            className="dismiss-btn"
+            onClick={() => setAlertVisible(false)}
+            aria-label="Dismiss alert"
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+      )}
       
       <div className="emergency-tabs">
         <button 
           className={`tab-btn ${activeTab === 'disasters' ? 'active' : ''}`}
           onClick={() => setActiveTab('disasters')}
+          aria-label="View active disasters"
         >
           <i className="fas fa-exclamation-triangle"></i>
           <span>Active Disasters</span>
@@ -94,6 +126,7 @@ const EmergencyPage = ({ location }) => {
         <button 
           className={`tab-btn ${activeTab === 'contacts' ? 'active' : ''}`}
           onClick={() => setActiveTab('contacts')}
+          aria-label="View emergency contacts"
         >
           <i className="fas fa-phone"></i>
           <span>Emergency Contacts</span>
@@ -102,6 +135,7 @@ const EmergencyPage = ({ location }) => {
         <button 
           className={`tab-btn ${activeTab === 'tips' ? 'active' : ''}`}
           onClick={() => setActiveTab('tips')}
+          aria-label="View safety tips"
         >
           <i className="fas fa-lightbulb"></i>
           <span>Safety Tips</span>
@@ -127,7 +161,11 @@ const EmergencyPage = ({ location }) => {
                     <h3>{contact.name}</h3>
                     <p>{contact.number}</p>
                   </div>
-                  <a href={`tel:${contact.number.replace(/-/g, '')}`} className="call-btn">
+                  <a 
+                    href={`tel:${contact.number.replace(/-/g, '')}`} 
+                    className="call-btn"
+                    aria-label={`Call ${contact.name}`}
+                  >
                     <i className="fas fa-phone-alt"></i>
                     <span>Call</span>
                   </a>
@@ -172,27 +210,37 @@ const EmergencyPage = ({ location }) => {
         )}
       </div>
       
-      <div className="emergency-help">
-        <h2>Need Immediate Assistance?</h2>
+      <div className="help-contact">
+        <h2>Need immediate assistance?</h2>
         <div className="help-options">
-          <a href="tel:911" className="help-option emergency">
+          <a 
+            href="tel:911" 
+            className="help-option call"
+            aria-label="Call 911 emergency services"
+          >
             <i className="fas fa-phone-alt"></i>
             <span>Call 911</span>
           </a>
           
-          <button className="help-option chat">
+          <button 
+            className="help-option chat" 
+            onClick={openChatbot}
+            aria-label="Open chat assistant"
+          >
             <i className="fas fa-comment-dots"></i>
             <span>Chat with Assistant</span>
           </button>
           
-          <a href="/report" className="help-option report">
+          <a 
+            href="/report" 
+            className="help-option report"
+            aria-label="Report an incident"
+          >
             <i className="fas fa-exclamation-circle"></i>
             <span>Report Incident</span>
           </a>
         </div>
       </div>
-      
-      <Chatbot />
     </div>
   );
 };

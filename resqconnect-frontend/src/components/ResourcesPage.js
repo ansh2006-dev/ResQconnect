@@ -84,6 +84,14 @@ const ResourcesPage = () => {
   const [activeCategory, setActiveCategory] = React.useState('all');
   const [searchTerm, setSearchTerm] = React.useState('');
 
+  const openChatbot = () => {
+    // Find the chatbot toggle button in the DOM and click it
+    const chatbotToggle = document.querySelector('.chatbot-toggle');
+    if (chatbotToggle) {
+      chatbotToggle.click();
+    }
+  };
+
   const filteredResources = resources.filter(resource => {
     const matchesCategory = activeCategory === 'all' || resource.category === activeCategory;
     const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -169,10 +177,16 @@ const ResourcesPage = () => {
       <div className="resource-suggestion">
         <h2>Don't see what you're looking for?</h2>
         <p>We're constantly updating our resource collection.</p>
-        <button className="suggest-btn">
-          <i className="fas fa-plus-circle"></i>
-          <span>Suggest a Resource</span>
-        </button>
+        <div className="resource-buttons">
+          <button className="suggest-btn">
+            <i className="fas fa-plus-circle"></i>
+            <span>Suggest a Resource</span>
+          </button>
+          <button className="chat-btn" onClick={openChatbot}>
+            <i className="fas fa-comment-dots"></i>
+            <span>Ask our Assistant</span>
+          </button>
+        </div>
       </div>
 
       <div className="resource-disclaimer">

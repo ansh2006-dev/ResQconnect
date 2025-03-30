@@ -13,10 +13,20 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [suggestions, setSuggestions] = useState([
+    "How to prepare for a flood?",
+    "What should be in my emergency kit?",
+    "Nearest evacuation center?",
+    "How to stay safe during an earthquake?"
+  ]);
   
-  // API configuration
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+  const messagesEndRef = useRef(null);
+  const chatInputRef = useRef(null);
+  
+  // API configuration with memoization
+  const API_URL = React.useMemo(() => 
+    process.env.REACT_APP_API_URL || 'http://localhost:5001/api',
+  []);
   
   // Set to false to use actual DeepSeek API
   const DEMO_MODE = false; 
@@ -32,6 +42,26 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
   useEffect(() => {
     setIsOpen(alwaysOpen);
   }, [alwaysOpen]);
+  
+  // Focus input field when chat opens
+  useEffect(() => {
+    if (isOpen && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  }, [isOpen]);
+  
+  // Listen for custom event to open the chatbot from other components
+  useEffect(() => {
+    const handleOpenChatbot = () => {
+      setIsOpen(true);
+    };
+    
+    document.addEventListener('open-chatbot', handleOpenChatbot);
+    
+    return () => {
+      document.removeEventListener('open-chatbot', handleOpenChatbot);
+    };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,6 +70,10 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
   const toggleChatbot = () => {
     if (!alwaysOpen) {
       setIsOpen(!isOpen);
+      // Focus input when opening
+      if (!isOpen && chatInputRef.current) {
+        setTimeout(() => chatInputRef.current.focus(), 100);
+      }
     }
   };
 
@@ -49,12 +83,18 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && input.trim()) {
+      e.preventDefault();
       sendMessage();
     }
   };
+  
+  const handleSuggestionClick = (suggestion) => {
+    setInput(suggestion);
+    setTimeout(() => sendMessage(), 100);
+  };
 
-  // Pre-defined responses for demonstration purposes
-  const getLocalResponse = (message) => {
+  // Pre-defined responses for demonstration purposes - memoized to avoid recreating on each render
+  const getLocalResponse = React.useCallback((message) => {
     const lowerMessage = message.toLowerCase();
     
     // Emergency contacts
@@ -107,9 +147,14 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
       return "Basic first aid: For minor cuts, clean with soap and water, apply pressure to stop bleeding, and cover with a clean bandage. For burns, cool with running water and cover with a clean cloth. For broken bones, immobilize the area and seek medical help. For heart attacks, call 911 and have the person chew aspirin if not allergic. For choking, perform the Heimlich maneuver. Always seek professional medical help for serious injuries.";
     }
     
+    // Emergency kit
+    if (lowerMessage.includes('kit') || lowerMessage.includes('supplies') || lowerMessage.includes('prepare')) {
+      return "Essential emergency kit items: 1) Water (one gallon per person per day for at least 3 days) 2) Non-perishable food (3-day supply) 3) Battery-powered radio 4) Flashlight and extra batteries 5) First aid kit 6) Whistle to signal for help 7) Dust mask 8) Moist towelettes and garbage bags 9) Wrench or pliers for utilities 10) Manual can opener 11) Local maps 12) Cell phone with chargers and backup battery 13) Prescription medications 14) Cash 15) Important family documents in waterproof container.";
+    }
+    
     // Default response
     return "I'm your ResQConnect assistant powered by DeepSeek AI. I can provide information about various emergency procedures, disaster preparedness, evacuation guidelines, and safety tips. Please ask about specific disasters like earthquakes, floods, fires, or hurricanes, or inquire about reporting incidents, emergency contacts, or first aid.";
-  };
+  }, []);
 
   const sendMessage = async () => {
     if (input.trim() === '') return;
@@ -143,6 +188,8 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
           const response = await axios.post(`${API_URL}/chatbot/message`, {
             message: input,
             conversationHistory: conversationHistory
+          }, {
+            timeout: 10000 // Set timeout to 10 seconds
           });
           
           console.log('DeepSeek API response:', response.data);
@@ -168,6 +215,10 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
       }
       
       setMessages(prev => [...prev, botResponse]);
+      
+      // Generate new suggestions based on context
+      setSuggestions(generateSuggestions(input, botResponse.text));
+      
     } catch (error) {
       console.error('Error with chatbot response:', error);
       
@@ -182,6 +233,57 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
       setLoading(false);
     }
   };
+  
+  // Dynamically generate contextual suggestions based on conversation
+  const generateSuggestions = (userInput, botResponse) => {
+    const lowerUserInput = userInput.toLowerCase();
+    const lowerBotResponse = botResponse.toLowerCase();
+    
+    if (lowerUserInput.includes('flood') || lowerBotResponse.includes('flood')) {
+      return [
+        "How do I prepare for a flood?",
+        "What to do after a flood?",
+        "Are flood waters dangerous?",
+        "Flood evacuation routes near me"
+      ];
+    }
+    
+    if (lowerUserInput.includes('fire') || lowerBotResponse.includes('fire')) {
+      return [
+        "How to use a fire extinguisher?",
+        "Escape plan for house fire",
+        "What to do after a fire?",
+        "Wildfire evacuation tips"
+      ];
+    }
+    
+    if (lowerUserInput.includes('earthquake') || lowerBotResponse.includes('earthquake')) {
+      return [
+        "Earthquake safety for kids",
+        "How to secure furniture for earthquakes",
+        "What to do after an earthquake",
+        "Earthquake emergency kit"
+      ];
+    }
+    
+    if (lowerUserInput.includes('kit') || lowerBotResponse.includes('kit') || 
+        lowerUserInput.includes('prepare') || lowerBotResponse.includes('prepare')) {
+      return [
+        "Essential medications for emergency kit",
+        "How to store emergency water",
+        "Documents to keep in emergency kit",
+        "Car emergency kit items"
+      ];
+    }
+    
+    // Default suggestions
+    return [
+      "How to prepare for a disaster?",
+      "Emergency contacts nearby",
+      "What should be in my emergency kit?",
+      "How to help my community during a disaster?"
+    ];
+  };
 
   const chatbotContainerClassName = `chatbot-container ${embedded ? 'embedded' : ''}`;
 
@@ -191,6 +293,7 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
         <button 
           className={`chatbot-toggle ${isOpen ? 'open' : ''}`} 
           onClick={toggleChatbot}
+          aria-label={isOpen ? "Close assistance chat" : "Open assistance chat"}
         >
           {isOpen ? (
             <i className="fas fa-times"></i>
@@ -212,6 +315,7 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
               <button 
                 className="chatbot-close" 
                 onClick={toggleChatbot}
+                aria-label="Close chat"
               >
                 <i className="fas fa-times"></i>
               </button>
@@ -256,22 +360,29 @@ const Chatbot = ({ alwaysOpen = false, embedded = false }) => {
               value={input}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
+              ref={chatInputRef}
+              aria-label="Chat message input"
             />
-            <button onClick={sendMessage} disabled={!input.trim()}>
+            <button 
+              onClick={sendMessage} 
+              disabled={!input.trim() || loading}
+              aria-label="Send message"
+            >
               <i className="fas fa-paper-plane"></i>
             </button>
           </div>
           
           <div className="chatbot-suggestions">
-            <button onClick={() => setInput("What should I do during an earthquake?")}>
-              Earthquake Safety
-            </button>
-            <button onClick={() => setInput("How do I report a disaster?")}>
-              Report Disaster
-            </button>
-            <button onClick={() => setInput("Emergency contact numbers")}>
-              Emergency Contacts
-            </button>
+            {suggestions.map((suggestion, index) => (
+              <button 
+                key={index} 
+                onClick={() => handleSuggestionClick(suggestion)}
+                disabled={loading}
+                aria-label={`Suggestion: ${suggestion}`}
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
         </div>
       )}
